@@ -1,0 +1,6 @@
+name: OneBlockSkills
+version: '${project.version}'
+main: oneblock.skills.Main
+api-version: 1.19
+authors: [ Mornov ]
+description: Custom Skills RPG
