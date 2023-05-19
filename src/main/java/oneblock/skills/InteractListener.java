@@ -2,10 +2,7 @@ package oneblock.skills;
 
 import org.bukkit.Material;
 import org.bukkit.Sound;
-import org.bukkit.entity.Arrow;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.LivingEntity;
-import org.bukkit.entity.Player;
+import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
@@ -18,7 +15,6 @@ import java.util.Objects;
 
 public class InteractListener implements Listener {
     private final Main plugin;
-
     public InteractListener(Main plugin) {
         this.plugin = plugin;
     }
@@ -36,8 +32,7 @@ public class InteractListener implements Listener {
         Player player = (Player) damager;
         ItemStack weapon = player.getInventory().getItemInMainHand();
 
-
-        if (weapon.getType() == Material.STONE_SWORD && weapon.hasItemMeta() && Objects.requireNonNull(weapon.getItemMeta()).hasDisplayName() && weapon.getItemMeta().getDisplayName().equals("§5§lShadowbane Dagger")) {
+        if (weapon.getType() == Material.STONE_SWORD && weapon.hasItemMeta() && Objects.requireNonNull(weapon.getItemMeta()).hasDisplayName() && weapon.getItemMeta().getDisplayName().equals("§5Shadowbane Dagger")) {
             if (isAttackingFromBehind(player, damagedEntity)) {
                 event.setDamage(event.getDamage() * 1.25);
                 player.playSound(player.getLocation(), Sound.ENTITY_BLAZE_HURT, 10f, 0.5f);
@@ -64,7 +59,10 @@ public class InteractListener implements Listener {
         ItemStack bow = event.getBow();
 
         if (bow != null && bow.getType() == Material.BOW && bow.hasItemMeta() && Objects.requireNonNull(bow.getItemMeta()).hasDisplayName()
-                && bow.getItemMeta().getDisplayName().equals("§e§lLuminescent Bow")) {
+                && bow.getItemMeta().getDisplayName().equals("§eLuminescent Bow")) {
+            Arrow arrow = (Arrow) event.getProjectile();
+            arrow.setPickupStatus(AbstractArrow.PickupStatus.DISALLOWED);
+
             Arrow arrow1 = player.launchProjectile(Arrow.class);
             arrow1.setDamage(50);
             arrow1.setKnockbackStrength(1);
