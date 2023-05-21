@@ -1,16 +1,22 @@
 package oneblock.skills;
 
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityShootBowEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
+import java.util.List;
 import java.util.Objects;
 
 public class InteractListener implements Listener {
@@ -83,43 +89,100 @@ public class InteractListener implements Listener {
 
     ////////// SHADOWSTRIKE BOW //////////
     @EventHandler
-    public void shadowstrikebow(EntityDamageByEntityEvent event) {
-        if (!(event.getDamager() instanceof Arrow))
+    public void shadowstrikeBowHit(EntityDamageByEntityEvent event) {
+        Bukkit.broadcastMessage(event.getEntity() + "damaged" + event.getDamager());
+        if (!(event.getDamager() instanceof Arrow)) {
             return;
+        }
 
         Arrow arrow = (Arrow) event.getDamager();
-        if (!(arrow.getShooter() instanceof Player))
+        if (!(arrow.getShooter() instanceof Player)) {
             return;
+        }
 
         Player shooter = (Player) arrow.getShooter();
         ItemStack bow = shooter.getInventory().getItemInMainHand();
-        if (bow.getType() != Material.BOW || !bow.hasItemMeta())
+        if (bow.getType() != Material.BOW || !bow.hasItemMeta()) {
             return;
+        }
 
         ItemMeta itemMeta = bow.getItemMeta();
-        if (!itemMeta.hasDisplayName() || !itemMeta.hasLore() || !itemMeta.getDisplayName().equals("§8Shadowstrike Bow"))
+        if (!itemMeta.hasDisplayName() || !itemMeta.hasLore() || !itemMeta.getDisplayName().equals("§8Shadowstrike Bow")) {
             return;
+        }
 
-        int lineIndex = getLineIndex(itemMeta.getLore(), "Potion: ");
-        if (lineIndex == -1)
+        List<String> lore = itemMeta.getLore();
+        if (lore == null || lore.size() <= 6) {
             return;
+        }
 
-        String potion = itemMeta.getLore().get(lineIndex);
+        int loreIndex = 6;
+        String mode = lore.get(loreIndex);
         LivingEntity target = (LivingEntity) event.getEntity();
-
-        if (potion.contains("poison")) {
+        if (mode.contains("Poison")) {
             target.addPotionEffect(new PotionEffect(PotionEffectType.POISON, 100, 1));
-        } else if (potion.contains("slow")) {
+        } else if (mode.contains("Slow")) {
             target.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 100, 1));
         }
     }
-
-    private int getLineIndex(List<String> lore, String prefix) {
-        for (int i = 0; i < lore.size(); i++) {
-            if (lore.get(i).startsWith(prefix)) {
-                return i;
-            }
+    @EventHandler
+    public void shadowstrikeBow(EntityShootBowEvent event) {
+        if (!(event.getEntity() instanceof Player)) {
+            return;
         }
-        return -1;
+
+        ItemStack bow = event.getBow();
+        if (bow == null || !bow.hasItemMeta()) {
+            return;
+        }
+
+        ItemMeta itemMeta = bow.getItemMeta();
+        if (!itemMeta.hasDisplayName() || !itemMeta.hasLore() || !itemMeta.getDisplayName().equals("§8Shadowstrike Bow")) {
+            return;
+        }
+
+        Player player = (Player) event.getEntity();
+        Arrow arrow = (Arrow) event.getProjectile();
+        arrow.setPickupStatus(AbstractArrow.PickupStatus.DISALLOWED);
+        player.sendMessage("Common arrow shot" + bow.getItemMeta().getDisplayName());
     }
+
+    @EventHandler
+    public void shadowstrikeBowMode(PlayerInteractEvent event) {
+        Player player = event.getPlayer();
+        if (!event.getAction().equals(Action.RIGHT_CLICK_AIR) && !event.getAction().equals(Action.RIGHT_CLICK_BLOCK)) {
+            return;
+        }
+
+        if (!player.isSneaking()) {
+            return;
+        }
+
+        ItemStack bow = player.getInventory().getItemInMainHand();
+        if (bow.getType() != Material.BOW || !bow.hasItemMeta()) {
+            return;
+        }
+
+        ItemMeta itemMeta = bow.getItemMeta();
+        if (!itemMeta.hasDisplayName() || !itemMeta.hasLore() || !itemMeta.getDisplayName().equals("§8Shadowstrike Bow")) {
+            return;
+        }
+
+        List<String> lore = itemMeta.getLore();
+        if (lore == null || lore.size() <= 6) {
+            return;
+        }
+
+        int loreIndex = 6;
+        String mode = lore.get(loreIndex);
+        if (mode.contains("Poison")) {
+            lore.set(loreIndex, ChatColor.AQUA + "Arrow Type: " + ChatColor.YELLOW + ChatColor.BOLD + "Slow");
+        } else if (mode.contains("Slow")) {
+            lore.set(loreIndex, ChatColor.AQUA + "Arrow Type: " + ChatColor.YELLOW + ChatColor.BOLD + "Poison");
+        }
+        itemMeta.setLore(lore);
+        bow.setItemMeta(itemMeta);
+    }
+
+    ////////// SHADOWSTRIKE BOW //////////
 }
