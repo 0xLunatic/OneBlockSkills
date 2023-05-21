@@ -90,7 +90,6 @@ public class InteractListener implements Listener {
     ////////// SHADOWSTRIKE BOW //////////
     @EventHandler
     public void shadowstrikeBowHit(EntityDamageByEntityEvent event) {
-        Bukkit.broadcastMessage(event.getEntity() + "damaged" + event.getDamager());
         if (!(event.getDamager() instanceof Arrow)) {
             return;
         }
@@ -144,7 +143,6 @@ public class InteractListener implements Listener {
         Player player = (Player) event.getEntity();
         Arrow arrow = (Arrow) event.getProjectile();
         arrow.setPickupStatus(AbstractArrow.PickupStatus.DISALLOWED);
-        player.sendMessage("Common arrow shot" + bow.getItemMeta().getDisplayName());
     }
 
     @EventHandler
@@ -183,6 +181,4 @@ public class InteractListener implements Listener {
         itemMeta.setLore(lore);
         bow.setItemMeta(itemMeta);
     }
-
-    ////////// SHADOWSTRIKE BOW //////////
 }
