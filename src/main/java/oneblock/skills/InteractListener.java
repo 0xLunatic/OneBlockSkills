@@ -15,6 +15,7 @@ import java.util.Objects;
 
 public class InteractListener implements Listener {
     private final Main plugin;
+
     public InteractListener(Main plugin) {
         this.plugin = plugin;
     }
@@ -31,6 +32,7 @@ public class InteractListener implements Listener {
 
         Player player = (Player) damager;
         ItemStack weapon = player.getInventory().getItemInMainHand();
+
 
         if (weapon.getType() == Material.STONE_SWORD && weapon.hasItemMeta() && Objects.requireNonNull(weapon.getItemMeta()).hasDisplayName() && weapon.getItemMeta().getDisplayName().equals("§5Shadowbane Dagger")) {
             if (isAttackingFromBehind(player, damagedEntity)) {
@@ -77,5 +79,47 @@ public class InteractListener implements Listener {
             arrow2.setVelocity(event.getProjectile().getVelocity().rotateAroundY(Math.toRadians(-15)));
             arrow2.setPickupStatus(Arrow.PickupStatus.DISALLOWED);
         }
+    }
+
+    ////////// SHADOWSTRIKE BOW //////////
+    @EventHandler
+    public void shadowstrikebow(EntityDamageByEntityEvent event) {
+        if (!(event.getDamager() instanceof Arrow))
+            return;
+
+        Arrow arrow = (Arrow) event.getDamager();
+        if (!(arrow.getShooter() instanceof Player))
+            return;
+
+        Player shooter = (Player) arrow.getShooter();
+        ItemStack bow = shooter.getInventory().getItemInMainHand();
+        if (bow.getType() != Material.BOW || !bow.hasItemMeta())
+            return;
+
+        ItemMeta itemMeta = bow.getItemMeta();
+        if (!itemMeta.hasDisplayName() || !itemMeta.hasLore() || !itemMeta.getDisplayName().equals("§8Shadowstrike Bow"))
+            return;
+
+        int lineIndex = getLineIndex(itemMeta.getLore(), "Potion: ");
+        if (lineIndex == -1)
+            return;
+
+        String potion = itemMeta.getLore().get(lineIndex);
+        LivingEntity target = (LivingEntity) event.getEntity();
+
+        if (potion.contains("poison")) {
+            target.addPotionEffect(new PotionEffect(PotionEffectType.POISON, 100, 1));
+        } else if (potion.contains("slow")) {
+            target.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 100, 1));
+        }
+    }
+
+    private int getLineIndex(List<String> lore, String prefix) {
+        for (int i = 0; i < lore.size(); i++) {
+            if (lore.get(i).startsWith(prefix)) {
+                return i;
+            }
+        }
+        return -1;
     }
 }
