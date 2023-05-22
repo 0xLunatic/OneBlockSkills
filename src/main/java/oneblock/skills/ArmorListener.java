@@ -1,9 +1,13 @@
 package oneblock.skills;
 
 import org.bukkit.Sound;
+import org.bukkit.World;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -45,7 +49,63 @@ public class ArmorListener implements Listener {
             }
         }
     }
+    int hitCounter;
+    private long lastActivationTimeIceBorn = 0;
+    private final long COOLDOWN_ICEBORN = 10 * 1000;
+    @EventHandler
+    public void icebornSetPassive(EntityDamageByEntityEvent event) {
+        if (!(event.getDamager() instanceof Player)) {
+            return;
+        }
 
+        Player player = (Player) event.getDamager();
+        if (checkFullSet(player)) {
+            if (checkFullSetHasItemMeta(player)) {
+                if (checkFullSetLore(player)) {
+                    if (getFullDisplayName(player, "§bIceborn")) {
+                        long currentTime = System.currentTimeMillis();
+                        if (currentTime - lastActivationTimeIceBorn >= COOLDOWN_ICEBORN) {
+                            hitCounter++; // Increment the hit counter
+
+                            if (hitCounter >= 5) {
+                                // Apply freezing effect to the damaged entity
+                                LivingEntity ent = (LivingEntity) event.getEntity();
+                                ent.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 20 * 3, 2));
+                                ent.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 20 * 3, 2));
+                                hitCounter = 0; // Reset the hit counter
+                                lastActivationTimeIceBorn = currentTime; // Update the last activation time
+                                player.playSound(player.getLocation(), Sound.BLOCK_GLASS_BREAK, 10f, 0f);
+                                player.sendMessage("§6Frostbite Skills §fapplied to §b" + event.getEntity().getName());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    @EventHandler
+    public void nightmareArmorSetPassive(EntityDamageByEntityEvent event) {
+        if (!(event.getDamager() instanceof Player)) {
+            return;
+        }
+
+        Player player = (Player) event.getDamager();
+        Entity entity = event.getEntity();
+        if (checkFullSet(player)) {
+            if (checkFullSetHasItemMeta(player)) {
+                if (checkFullSetLore(player)) {
+                    if (getFullDisplayName(player, "§7Nightmare")) {
+                        // Check if it is night time
+                        World world = player.getWorld();
+                        long time = world.getTime();
+                        if (time >= 13000 && time <= 23000) { // Adjust the time range if needed
+                            event.setDamage(event.getDamage() * 1.5);
+                        }
+                    }
+                }
+            }
+        }
+    }
 
 
     public boolean checkFullSet(Player p) {

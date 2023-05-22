@@ -106,6 +106,7 @@ public class InteractListener implements Listener {
         }
 
         ItemMeta itemMeta = bow.getItemMeta();
+        assert itemMeta != null;
         if (!itemMeta.hasDisplayName() || !itemMeta.hasLore() || !itemMeta.getDisplayName().equals("§8Shadowstrike Bow")) {
             return;
         }
@@ -136,6 +137,7 @@ public class InteractListener implements Listener {
         }
 
         ItemMeta itemMeta = bow.getItemMeta();
+        assert itemMeta != null;
         if (!itemMeta.hasDisplayName() || !itemMeta.hasLore() || !itemMeta.getDisplayName().equals("§8Shadowstrike Bow")) {
             return;
         }
@@ -162,6 +164,7 @@ public class InteractListener implements Listener {
         }
 
         ItemMeta itemMeta = bow.getItemMeta();
+        assert itemMeta != null;
         if (!itemMeta.hasDisplayName() || !itemMeta.hasLore() || !itemMeta.getDisplayName().equals("§8Shadowstrike Bow")) {
             return;
         }
@@ -180,5 +183,39 @@ public class InteractListener implements Listener {
         }
         itemMeta.setLore(lore);
         bow.setItemMeta(itemMeta);
+    }
+    ////////// ICEBORN AXES //////////
+    @EventHandler
+    public void icebornAxeDamage(EntityDamageByEntityEvent event) {
+        if (!(event.getDamager() instanceof Player)) {
+            return;
+        }
+
+        Player player = (Player) event.getDamager();
+        Entity entity = event.getEntity();
+        ItemStack mainHand = player.getInventory().getItemInMainHand();
+        ItemStack offHand = player.getInventory().getItemInOffHand();
+
+        if (mainHand.getType() == Material.DIAMOND_AXE && offHand.getType() == Material.DIAMOND_AXE) {
+            ItemMeta mainHandMeta = mainHand.getItemMeta();
+            ItemMeta offHandMeta = offHand.getItemMeta();
+
+            if (mainHandMeta != null && offHandMeta != null &&
+                    mainHandMeta.hasLore() && offHandMeta.hasLore() &&
+                    Objects.requireNonNull(mainHandMeta.getLore()).contains("§6Dual Wielding: §e§lPASSIVE") &&
+                    Objects.requireNonNull(offHandMeta.getLore()).contains("§6Dual Wielding: §e§lPASSIVE")) {
+
+                double originalDamage = event.getDamage();
+                double increasedDamage = originalDamage * 3.5;
+                LivingEntity ent = (LivingEntity) entity;
+
+                if (ent.getHealth() < ent.getMaxHealth()) {
+                    double additionalDamage = (ent.getMaxHealth() - ent.getHealth()) * 0.01;
+                    increasedDamage += additionalDamage;
+                }
+                event.setDamage(increasedDamage);
+                player.playSound(player.getLocation(), Sound.ENTITY_ZOMBIE_BREAK_WOODEN_DOOR, 5f, 1f);
+            }
+        }
     }
 }

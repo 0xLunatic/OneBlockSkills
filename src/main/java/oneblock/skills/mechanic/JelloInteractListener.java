@@ -209,8 +209,6 @@ public class JelloInteractListener implements Listener {
                     }
                 }
             }
-        }else{
-            player.sendMessage("§cEww... It stinks... Please Wait!");
         }
     }
 

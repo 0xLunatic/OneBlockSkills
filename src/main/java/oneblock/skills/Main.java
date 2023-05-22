@@ -3,6 +3,7 @@ package oneblock.skills;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
 import oneblock.skills.heads.HeadList;
+import oneblock.skills.mechanic.IceKingSummoner;
 import oneblock.skills.mechanic.JelloInteractListener;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -29,6 +30,7 @@ public final class Main extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new ArmorListener(this), this);
         getServer().getPluginManager().registerEvents(new MornovOnly(this), this);
         getServer().getPluginManager().registerEvents(new JelloInteractListener(this), this);
+        getServer().getPluginManager().registerEvents(new IceKingSummoner(this), this);
     }
 
     @Override
