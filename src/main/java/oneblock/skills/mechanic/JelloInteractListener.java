@@ -19,6 +19,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -123,7 +124,7 @@ public class JelloInteractListener implements Listener {
                                         }
                                     }
                                 }
-                            }.runTaskTimer(plugin, 20L, 20L);
+                            }.runTaskTimer(plugin, 1L, 1L);
                         }else {
                             player.sendMessage(ChatColor.RED + "You can't use it here!");
                         }
@@ -137,7 +138,10 @@ public class JelloInteractListener implements Listener {
     public void onJelloBucketInteract(PlayerInteractAtEntityEvent event) {
         if (!(event.getRightClicked() instanceof ArmorStand))
             return;
+        if (event.getHand() != EquipmentSlot.HAND) // Only handle main hand interaction
+            return;
 
+        event.setCancelled(true);
         ArmorStand armorStand = (ArmorStand) event.getRightClicked();
         Player player = event.getPlayer();
 
@@ -145,67 +149,47 @@ public class JelloInteractListener implements Listener {
             for (Entity stand : armorStand.getNearbyEntities(0, 2, 0)) {
                 if (stand instanceof ArmorStand) {
                     String customName = stand.getCustomName();
-                    if (customName != null && (customName.contains(player.getName() + "'s Progress §e§lFULL") || customName.contains(player.getName() + " Jello Bucket"))) {
+                    if (customName != null && customName.contains(player.getName() + " Jello Bucket")){
+                        stand.remove();
+                    }
+                    if (customName != null && (customName.contains(player.getName() + "'s Progress §e§lFULL"))) {
                         Location loc = stand.getLocation();
                         stand.remove();
                         armorStand.remove();
                         Objects.requireNonNull(loc.getWorld()).spawnParticle(Particle.CLOUD, loc, 30, 0.5, 0.5, 0.5, 0.2);
                         loc.getWorld().playSound(loc, Sound.ENTITY_CHICKEN_EGG, 10, 0f);
                         double chance = Math.random() * 500; // Generate a random chance value between 0 and 100
-                        if (!player.hasPermission("jello.booster")) {
-                            if (chance < 20) {
-                                Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), "" +
-                                        "mi give MATERIAL SLIME_GEL " + player.getName() + " 1");
-                            } else if (chance < 30) {
-                                Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), "" +
-                                        "mi give MATERIAL BLOBS_OF_JELLO " + player.getName() + " 1");
-                            } else if (chance < 35) {
-                                Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), "" +
-                                        "mi give MATERIAL STINKY_JELLO " + player.getName() + " 1");
-                                Bukkit.broadcastMessage("§e§lCongratulations! §d" +player.getName()+ " §fjust found §2§lStinky Jello§f!");
-                                for (Player online : Bukkit.getOnlinePlayers()){
-                                    online.playSound(online.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 1f, 1f);
-                                }
-                            } else if (chance < 37) {
-                                Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), "" +
-                                        "mi give MATERIAL UNIDENTIFIED_HANDLE " + player.getName() + " 1");
-                                Bukkit.broadcastMessage("§e§lCongratulations! §d" +player.getName()+ " §fjust found §5§lUnidentified Handle§f!");
-                                for (Player online : Bukkit.getOnlinePlayers()){
-                                    online.playSound(online.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 1f, 1f);
-                                }
-                            } else {
-                                Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), "" +
-                                        "mi give MATERIAL RAW_JELLO " + player.getName() + " 1-3");
+
+                        if (chance < 20) {
+                            Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), "" +
+                                    "mi give MATERIAL SLIME_GEL " + player.getName() + " 1");
+                        } else if (chance < 30) {
+                            Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), "" +
+                                    "mi give MATERIAL BLOBS_OF_JELLO " + player.getName() + " 1");
+                        } else if (chance < 35) {
+                            Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), "" +
+                                    "mi give MATERIAL STINKY_JELLO " + player.getName() + " 1");
+                            Bukkit.broadcastMessage("§e§lCongratulations! §d" + player.getName() + " §fjust found §2§lStinky Jello§f!");
+                            for (Player online : Bukkit.getOnlinePlayers()) {
+                                online.playSound(online.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 1f, 1f);
                             }
-                            break;
+                        } else if (chance < 37) {
+                            Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), "" +
+                                    "mi give MATERIAL UNIDENTIFIED_HANDLE " + player.getName() + " 1");
+                            Bukkit.broadcastMessage("§e§lCongratulations! §d" + player.getName() + " §fjust found §5§lUnidentified Handle§f!");
+                            for (Player online : Bukkit.getOnlinePlayers()) {
+                                online.playSound(online.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 1f, 1f);
+                            }
                         } else {
-                            if (chance < 20) {
-                                Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), "" +
-                                        "mi give MATERIAL SLIME_GEL " + player.getName() + " 1");
-                            } else if (chance < 30) {
-                                Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), "" +
-                                        "mi give MATERIAL BLOBS_OF_JELLO " + player.getName() + " 1");
-                            } else if (chance < 35) {
-                                Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), "" +
-                                        "mi give MATERIAL STINKY_JELLO " + player.getName() + " 1");
-                                Bukkit.broadcastMessage("§e§lCongratulations! §d" +player.getName()+ " §fjust found §2§lStinky Jello§f!");
-                                for (Player online : Bukkit.getOnlinePlayers()){
-                                    online.playSound(online.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 1f, 1f);
-                                }
-                            } else if (chance < 37) {
-                                Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), "" +
-                                        "mi give MATERIAL UNIDENTIFIED_HANDLE " + player.getName() + " 1");
-                                Bukkit.broadcastMessage("§e§lCongratulations! §d" +player.getName()+ " §fjust found §5§lUnidentified Handle§f!");
-                                for (Player online : Bukkit.getOnlinePlayers()){
-                                    online.playSound(online.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 1f, 1f);
-                                }
-                            } else {
+                            if (player.hasPermission("jello.booster")){
                                 Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), "" +
                                         "mi give MATERIAL RAW_JELLO " + player.getName() + " 1-5");
                             }
-                            break;
+                            else{
+                                Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), "" +
+                                        "mi give MATERIAL RAW_JELLO " + player.getName() + " 1-3");
+                            }
                         }
-
                     }
                 }
             }
