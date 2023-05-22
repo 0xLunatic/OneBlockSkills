@@ -124,7 +124,7 @@ public class JelloInteractListener implements Listener {
                                         }
                                     }
                                 }
-                            }.runTaskTimer(plugin, 1L, 1L);
+                            }.runTaskTimer(plugin, 20, 20);
                         }else {
                             player.sendMessage(ChatColor.RED + "You can't use it here!");
                         }
