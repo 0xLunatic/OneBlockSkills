@@ -8,6 +8,7 @@ import com.sk89q.worldguard.protection.regions.RegionContainer;
 import com.sk89q.worldguard.protection.regions.RegionQuery;
 
 import io.lumine.mythic.bukkit.events.MythicMobDeathEvent;
+import io.lumine.mythic.bukkit.events.MythicMobSpawnEvent;
 import oneblock.skills.Main;
 import org.bukkit.*;
 import org.bukkit.block.Block;
@@ -335,6 +336,8 @@ public class IceKingSummoner implements Listener {
                         }
                     }else{
                         moveTowardsSummoner(spirit, spiritholo);
+                        spirit.getWorld().playSound(spirit.getLocation(), Sound.ENTITY_ZOMBIE_VILLAGER_CURE, 50f, 0f);
+                        spirit.getWorld().strikeLightning(spirit.getLocation());
                         cancel();
                     }
 
@@ -351,10 +354,18 @@ public class IceKingSummoner implements Listener {
         World world = Bukkit.getWorld("s3");
         Location destination = new Location(world, 4590.5, 89, 4599.5 ); // Replace x, y, z with the coordinates of the destination location
         double speed = 0.05; // Adjust the speed of movement (0.05 is a slow speed)
-
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                if (!spirit.isDead()) {
+                    spirit.getWorld().playSound(spirit.getLocation(), Sound.ENTITY_WOLF_SHAKE, 10f, 2f);
+                }else{
+                    cancel();
+                }
+            }
+        }.runTaskTimer(plugin, 20, 20);
         new BukkitRunnable() {
             private boolean reachedDestination = false;
-
             @Override
             public void run() {
                 if (spirit.isDead() || reachedDestination) {
@@ -388,10 +399,9 @@ public class IceKingSummoner implements Listener {
         }.runTaskTimer(plugin, 1, 1);
     }
     @EventHandler
-    public void onIceKingDeath(MythicMobDeathEvent e){
-        if (e.getEntity().getName().equalsIgnoreCase("§9§lIce King")){
+    public void onIceKingDeath(MythicMobDeathEvent e) {
+        if (e.getEntity().getName().equalsIgnoreCase("§9§lIce King")) {
             spawnCounter = 1;
-            Bukkit.broadcastMessage("§c☠ §e" + e.getKiller().getName() + " §fgot the last hit on §9§lIce King Boss§f!");
             resetSummonerData();
         }
     }

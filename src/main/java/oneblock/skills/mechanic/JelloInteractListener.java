@@ -102,6 +102,9 @@ public class JelloInteractListener implements Listener {
                                     progress += 0.01; // Increase progress by 1%
                                     progressHologram.getWorld().spawnParticle(Particle.WATER_DROP, progressHologram.getLocation().add(0, 2, 0), 5, 0, 0, 0, 0);
                                     progressHologram.setCustomName(ChatColor.GREEN + player.getName() + "'s Progress " + formatProgressBar(progress));
+                                    if(progressHologram.getLocation().getChunk().isLoaded()){
+
+                                    }
                                     if (progress >= 1.0) {
                                         progress = 1.0; // Clamp progress to 100%
                                         cancel(); // Stop the task when progress reaches 100%
@@ -133,6 +136,7 @@ public class JelloInteractListener implements Listener {
             }
         }
     }
+
 
     @EventHandler
     public void onJelloBucketInteract(PlayerInteractAtEntityEvent event) {
