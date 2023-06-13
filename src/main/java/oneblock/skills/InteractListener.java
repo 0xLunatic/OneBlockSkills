@@ -1,5 +1,12 @@
 package oneblock.skills;
 
+import com.sk89q.worldedit.bukkit.BukkitAdapter;
+import com.sk89q.worldguard.WorldGuard;
+import com.sk89q.worldguard.protection.ApplicableRegionSet;
+import com.sk89q.worldguard.protection.regions.ProtectedRegion;
+import com.sk89q.worldguard.protection.regions.RegionContainer;
+import com.sk89q.worldguard.protection.regions.RegionQuery;
+import oneblock.skills.task.HomingTask;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -10,11 +17,15 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityShootBowEvent;
+import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
+import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.util.Vector;
 
 import java.util.List;
 import java.util.Objects;
@@ -72,18 +83,64 @@ public class InteractListener implements Listener {
             arrow.setPickupStatus(AbstractArrow.PickupStatus.DISALLOWED);
 
             Arrow arrow1 = player.launchProjectile(Arrow.class);
-            arrow1.setDamage(50);
             arrow1.setKnockbackStrength(1);
             arrow1.setShooter(player);
+            arrow1.setDamage(350*1.5);
             arrow1.setVelocity(event.getProjectile().getVelocity().rotateAroundY(Math.toRadians(15)));
-            arrow1.setPickupStatus(Arrow.PickupStatus.DISALLOWED);
 
             Arrow arrow2 = player.launchProjectile(Arrow.class);
-            arrow2.setDamage(25);
             arrow2.setKnockbackStrength(1);
+            arrow2.setDamage(350*1.5);
             arrow2.setShooter(player);
             arrow2.setVelocity(event.getProjectile().getVelocity().rotateAroundY(Math.toRadians(-15)));
-            arrow2.setPickupStatus(Arrow.PickupStatus.DISALLOWED);
+
+            arrow1.setMetadata("luminescentArrow", new FixedMetadataValue(plugin, true));
+            arrow2.setMetadata("luminescentArrow", new FixedMetadataValue(plugin, true));
+
+            new BukkitRunnable(){
+                @Override
+                public void run(){
+                    if (!arrow.isDead()){
+                        for (Entity entity : arrow.getNearbyEntities(5, 5, 5)){
+                            if (entity instanceof Boat || entity instanceof Minecart){
+                                arrow.remove();
+                                arrow1.remove();
+                                arrow2.remove();
+                                cancel();
+                            }
+                        }
+                    }else{
+                        cancel();
+                    }
+                }
+            }.runTaskTimer(plugin, 1, 1);
+
+            if (isOnRegion(player, "ruins")){
+                new BukkitRunnable() {
+                    @Override
+                    public void run() {
+                        if (isOnRegion(player, "ruins")) {
+                            double minAngle = 6.283185307179586D;
+                            Entity minEntity = null;
+                            Arrow arrow = (Arrow) event.getProjectile();
+                            for (Entity entity : arrow.getNearbyEntities(15.0D, 15.0D, 15.0D)) {
+                                if (player.hasLineOfSight(entity) && (entity instanceof Monster) && !entity.isDead()) {
+                                    Vector toTarget = entity.getLocation().toVector().clone().subtract(player.getLocation().toVector());
+                                    double angle = arrow.getVelocity().angle(toTarget);
+                                    if (angle < minAngle) {
+                                        minAngle = angle;
+                                        minEntity = entity;
+                                    }
+                                }
+                            }
+                            if (minEntity != null) {
+                                new HomingTask(arrow1, (LivingEntity) minEntity, plugin);
+                                new HomingTask(arrow2, (LivingEntity) minEntity, plugin);
+                            }
+                        }
+                    }
+                }.runTaskLater(plugin, 5L); // Delay execution by 1 second (20 ticks = 1 second)
+            }
         }
     }
 
@@ -210,12 +267,27 @@ public class InteractListener implements Listener {
                 LivingEntity ent = (LivingEntity) entity;
 
                 if (ent.getHealth() < ent.getMaxHealth()) {
-                    double additionalDamage = (ent.getMaxHealth() - ent.getHealth()) * 0.01;
+                    double additionalDamage = (ent.getMaxHealth() - ent.getHealth()) * 0.005;
                     increasedDamage += additionalDamage;
+                }
+                if (increasedDamage >= 20000){
+                    increasedDamage = 20000;
                 }
                 event.setDamage(increasedDamage);
                 player.playSound(player.getLocation(), Sound.ENTITY_ZOMBIE_BREAK_WOODEN_DOOR, 5f, 1f);
             }
         }
+    }
+    private boolean isOnRegion(Player player, String regionTarget) {
+        com.sk89q.worldedit.util.Location loc = BukkitAdapter.adapt(player.getLocation());
+        RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
+        RegionQuery query = container.createQuery();
+        ApplicableRegionSet set = query.getApplicableRegions(loc);
+        for (ProtectedRegion region : set) {
+            if (region.getId().contains(regionTarget)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

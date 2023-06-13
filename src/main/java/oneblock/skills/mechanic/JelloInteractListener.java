@@ -17,6 +17,7 @@ import org.bukkit.entity.Monster;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
@@ -28,10 +29,13 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 public class JelloInteractListener implements Listener {
     private Main plugin;
+    private final Map<Player, Integer> bucketCount = new HashMap<>();
 
     public JelloInteractListener(Main plugin) {
         this.plugin = plugin;
@@ -44,92 +48,128 @@ public class JelloInteractListener implements Listener {
 
         if (item.getType() == Material.PLAYER_HEAD) {
             ItemMeta itemMeta = item.getItemMeta();
-            if (itemMeta != null && itemMeta.hasDisplayName() && itemMeta.getDisplayName().equals(ChatColor.GOLD + "Jello Bucket Empty")) {
-                Block clickedBlock = e.getClickedBlock();
-                e.setCancelled(true);
+            if (e.getAction() == Action.RIGHT_CLICK_BLOCK) {
+                if (itemMeta != null && itemMeta.hasDisplayName() && itemMeta.getDisplayName().equals(ChatColor.GOLD + "Jello Bucket Empty")) {
+                    Block clickedBlock = e.getClickedBlock();
+                    e.setCancelled(true);
 
-                if (clickedBlock != null && clickedBlock.getType() == Material.LIME_STAINED_GLASS || Objects.requireNonNull(clickedBlock).getType() == Material.LIME_STAINED_GLASS_PANE) {
-                    World world = clickedBlock.getWorld();
-                    if (isOnRegion(player, "jello-farm")) {
+                    if (clickedBlock != null && clickedBlock.getType() == Material.LIME_STAINED_GLASS || Objects.requireNonNull(clickedBlock).getType() == Material.LIME_STAINED_GLASS_PANE) {
+                        World world = clickedBlock.getWorld();
+                        if (isOnRegion(player, "jello-farm")) {
 
-                        if (world != null && world.getName().equalsIgnoreCase("s3")) {
-                            for (Entity ent : player.getNearbyEntities(0.5, 0.5, 0.5)) {
-                                if (ent instanceof ArmorStand) {
-                                    if (!Objects.requireNonNull(ent.getCustomName()).contains("Jello")) {
-                                        return;
-                                    } else {
-                                        player.sendMessage(ChatColor.RED + "Move a bit!");
-                                    }
-                                }
-                            }
-                            item.setAmount(item.getAmount() - 1);
-                            ArmorStand armorStand = world.spawn(player.getLocation().add(0, -1.5, 0), ArmorStand.class);
-                            armorStand.setVisible(false);
-                            armorStand.setGravity(false);
-                            armorStand.setInvulnerable(true);
-                            armorStand.setPersistent(true);
-                            armorStand.setSilent(true);
-                            armorStand.setHelmet(Main.getHead("JelloBucketEmpty"));
-                            armorStand.setCustomName(player.getName() + "_JelloBucketEmpty");
-
-                            ArmorStand nameHologram = world.spawn(armorStand.getLocation().add(0, 0.2, 0), ArmorStand.class);
-                            nameHologram.setVisible(false);
-                            nameHologram.setGravity(false);
-                            nameHologram.setInvulnerable(true);
-                            nameHologram.setPersistent(true);
-                            nameHologram.setSilent(true);
-                            nameHologram.setCustomName(ChatColor.GREEN + player.getName() + " Jello Bucket");
-                            nameHologram.setCustomNameVisible(true);
-
-                            ArmorStand progressHologram = world.spawn(nameHologram.getLocation().add(0, 0.35, 0), ArmorStand.class);
-                            progressHologram.setVisible(false);
-                            progressHologram.setGravity(false);
-                            progressHologram.setInvulnerable(true);
-                            progressHologram.setPersistent(true);
-                            progressHologram.setSilent(true);
-                            progressHologram.setCustomName(ChatColor.GREEN + player.getName() + "'s Progress " + formatProgressBar(0.01));
-                            progressHologram.setCustomNameVisible(true);
-
-                            // Cache the custom name to a file
-                            cacheCustomName(armorStand.getCustomName());
-                            cacheCustomName(nameHologram.getCustomName());
-
-                            new BukkitRunnable() {
-                                double progress = 0.01;
-
-                                @Override
-                                public void run() {
-                                    progress += 0.01; // Increase progress by 1%
-                                    progressHologram.getWorld().spawnParticle(Particle.WATER_DROP, progressHologram.getLocation().add(0, 2, 0), 5, 0, 0, 0, 0);
-                                    progressHologram.setCustomName(ChatColor.GREEN + player.getName() + "'s Progress " + formatProgressBar(progress));
-                                    if(progressHologram.getLocation().getChunk().isLoaded()){
-
-                                    }
-                                    if (progress >= 1.0) {
-                                        progress = 1.0; // Clamp progress to 100%
-                                        cancel(); // Stop the task when progress reaches 100%
-                                        playFinishSound(player); // Play the finishing sound effect
-                                        armorStand.setHelmet(Main.getHead("JelloBucketFull"));
-                                        armorStand.setCustomName(player.getName() + "_JelloBucketFull");
-                                        cacheCustomName(armorStand.getCustomName());
-                                        progressHologram.setCustomName(ChatColor.GREEN + player.getName() + "'s Progress §e§lFULL");
-                                        return;
-                                    }
-                                    playFillingBucketSound(player);
-                                    for (Entity ent : armorStand.getNearbyEntities(1.5, 1.5, 1.5)){
-                                        if (ent instanceof Monster){
-                                            cancel();
-                                            player.sendMessage("§cOh no! Your bucket was spilled by a monster.");
-                                            armorStand.remove();
-                                            nameHologram.remove();
-                                            progressHologram.remove();
-                                            player.playSound(armorStand.getLocation(), Sound.BLOCK_GLASS_BREAK, 20f, 0f);
+                            if (world != null && world.getName().equalsIgnoreCase("s3")) {
+                                for (Entity ent : player.getNearbyEntities(0.5, 0.5, 0.5)) {
+                                    if (ent instanceof ArmorStand) {
+                                        if (!Objects.requireNonNull(ent.getCustomName()).contains("Jello")) {
+                                            return;
+                                        } else {
+                                            player.sendMessage(ChatColor.RED + "Move a bit!");
                                         }
                                     }
                                 }
-                            }.runTaskTimer(plugin, 20, 20);
-                        }else {
-                            player.sendMessage(ChatColor.RED + "You can't use it here!");
+                                bucketCount.putIfAbsent(player, 0);
+                                if (bucketCount.get(player) < 5) {
+                                    bucketCount.put(player, bucketCount.get(player) + 1);
+                                    item.setAmount(item.getAmount() - 1);
+                                    ArmorStand armorStand = world.spawn(player.getLocation().add(0, -1.5, 0), ArmorStand.class);
+                                    armorStand.setVisible(false);
+                                    armorStand.setGravity(false);
+                                    armorStand.setInvulnerable(true);
+                                    armorStand.setPersistent(true);
+                                    armorStand.setSilent(true);
+                                    armorStand.setHelmet(Main.getHead("JelloBucketEmpty"));
+                                    armorStand.setCustomName(player.getName() + "_JelloBucketEmpty");
+
+                                    ArmorStand nameHologram = world.spawn(armorStand.getLocation().add(0, 0.2, 0), ArmorStand.class);
+                                    nameHologram.setVisible(false);
+                                    nameHologram.setGravity(false);
+                                    nameHologram.setInvulnerable(true);
+                                    nameHologram.setPersistent(true);
+                                    nameHologram.setSilent(true);
+                                    nameHologram.setCustomName(ChatColor.GREEN + player.getName() + " Jello Bucket");
+                                    nameHologram.setCustomNameVisible(true);
+
+                                    ArmorStand progressHologram = world.spawn(nameHologram.getLocation().add(0, 0.35, 0), ArmorStand.class);
+                                    progressHologram.setVisible(false);
+                                    progressHologram.setGravity(false);
+                                    progressHologram.setInvulnerable(true);
+                                    progressHologram.setPersistent(true);
+                                    progressHologram.setSilent(true);
+                                    progressHologram.setCustomName(ChatColor.GREEN + player.getName() + "'s Progress " + formatProgressBar(0.01));
+                                    progressHologram.setCustomNameVisible(true);
+
+                                    // Cache the custom name to a file
+                                    cacheCustomName(armorStand.getCustomName());
+                                    cacheCustomName(nameHologram.getCustomName());
+
+                                    new BukkitRunnable(){
+                                        @Override
+                                        public void run(){
+                                            if (!armorStand.isDead()){
+                                                if (!player.isOnline()){
+                                                    armorStand.remove();
+                                                    progressHologram.remove();
+                                                    nameHologram.remove();
+                                                    bucketCount.remove(player);
+                                                    cancel();
+                                                }
+                                                if (player.getWorld() != armorStand.getWorld()){
+                                                    armorStand.remove();
+                                                    progressHologram.remove();
+                                                    nameHologram.remove();
+                                                    bucketCount.remove(player);
+                                                    player.sendMessage(ChatColor.RED + "You can't move in to different world! Your bucket is gone!");
+                                                    cancel();
+                                                }
+                                            }
+                                        }
+                                    }.runTaskTimer(plugin, 40, 40);
+
+                                    new BukkitRunnable() {
+                                        double progress = 0.01;
+
+                                        @Override
+                                        public void run() {
+                                            if (!armorStand.isDead()) {
+                                                progress += 0.01; // Increase progress by 1%
+                                                progressHologram.getWorld().spawnParticle(Particle.WATER_DROP, progressHologram.getLocation().add(0, 2, 0), 5, 0, 0, 0, 0);
+                                                progressHologram.setCustomName(ChatColor.GREEN + player.getName() + "'s Progress " + formatProgressBar(progress));
+                                                if (progressHologram.getLocation().getChunk().isLoaded()) {
+
+                                                }
+                                                if (progress >= 1.0) {
+                                                    progress = 1.0; // Clamp progress to 100%
+                                                    cancel(); // Stop the task when progress reaches 100%
+                                                    playFinishSound(player); // Play the finishing sound effect
+                                                    armorStand.setHelmet(Main.getHead("JelloBucketFull"));
+                                                    armorStand.setCustomName(player.getName() + "_JelloBucketFull");
+                                                    cacheCustomName(armorStand.getCustomName());
+                                                    progressHologram.setCustomName(ChatColor.GREEN + player.getName() + "'s Progress §e§lFULL");
+                                                    return;
+                                                }
+                                                playFillingBucketSound(player);
+                                                for (Entity ent : armorStand.getNearbyEntities(1.5, 1.5, 1.5)) {
+                                                    if (ent instanceof Monster) {
+                                                        cancel();
+                                                        bucketCount.put(player, bucketCount.get(player) - 1);
+                                                        player.sendMessage("§cOh no! Your bucket was spilled by a monster.");
+                                                        armorStand.remove();
+                                                        nameHologram.remove();
+                                                        progressHologram.remove();
+                                                        player.playSound(armorStand.getLocation(), Sound.BLOCK_GLASS_BREAK, 20f, 0f);
+                                                    }
+                                                }
+                                            }else{
+                                                cancel();
+                                            }
+                                        }
+                                    }.runTaskTimer(plugin, 20, 20);
+                                } else {
+                                    player.sendMessage(ChatColor.RED + "You can't place more than 5!");
+                                }
+                            } else {
+                                player.sendMessage(ChatColor.RED + "You can't use it here!");
+                            }
                         }
                     }
                 }
@@ -157,6 +197,8 @@ public class JelloInteractListener implements Listener {
                         stand.remove();
                     }
                     if (customName != null && (customName.contains(player.getName() + "'s Progress §e§lFULL"))) {
+                        bucketCount.put(player, bucketCount.get(player) - 1);
+
                         Location loc = stand.getLocation();
                         stand.remove();
                         armorStand.remove();
@@ -187,11 +229,11 @@ public class JelloInteractListener implements Listener {
                         } else {
                             if (player.hasPermission("jello.booster")){
                                 Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), "" +
-                                        "mi give MATERIAL RAW_JELLO " + player.getName() + " 1-5");
+                                        "mi give MATERIAL RAW_JELLO " + player.getName() + " 1-8");
                             }
                             else{
                                 Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), "" +
-                                        "mi give MATERIAL RAW_JELLO " + player.getName() + " 1-3");
+                                        "mi give MATERIAL RAW_JELLO " + player.getName() + " 1-5");
                             }
                         }
                     }

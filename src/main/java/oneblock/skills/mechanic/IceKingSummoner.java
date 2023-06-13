@@ -10,14 +10,14 @@ import com.sk89q.worldguard.protection.regions.RegionQuery;
 import io.lumine.mythic.bukkit.events.MythicMobDeathEvent;
 import io.lumine.mythic.bukkit.events.MythicMobSpawnEvent;
 import oneblock.skills.Main;
+import oneblock.skills.task.HomingTask;
 import org.bukkit.*;
 import org.bukkit.block.Block;
-import org.bukkit.entity.ArmorStand;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.Player;
+import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.entity.EntityShootBowEvent;
 import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
@@ -178,7 +178,6 @@ public class IceKingSummoner implements Listener {
             armorStand.setCustomName(customName + "_" + player.getName());
             armorStand.setCustomNameVisible(false);
 
-            assert world != null;
             ArmorStand nameHologram = loc.getWorld().spawn(armorStand.getLocation().add(0, 0.2, 0), ArmorStand.class);
             nameHologram.setVisible(false);
             nameHologram.setGravity(false);
@@ -215,7 +214,6 @@ public class IceKingSummoner implements Listener {
             armorStand.setCustomName(customName + "_" + player.getName());
             armorStand.setCustomNameVisible(false);
 
-            assert world != null;
             ArmorStand nameHologram = loc.getWorld().spawn(armorStand.getLocation().add(0, 0.2, 0), ArmorStand.class);
             nameHologram.setVisible(false);
             nameHologram.setGravity(false);
@@ -315,6 +313,9 @@ public class IceKingSummoner implements Listener {
                     cancel();
                     return;
                 }
+                if (spirit.getLocation().getChunk().isLoaded()) {
+
+                }
                 if(spirit.getWorld().getName().equalsIgnoreCase(p.getWorld().getName())) {
                     if (placedSummoner <= 4){
                         if (goingUp) {
@@ -375,7 +376,7 @@ public class IceKingSummoner implements Listener {
                     spawnCounter++;
                     if (spawnCounter >= 4){
                         Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), "" +
-                                "mm m spawn yirouInvoque 1 s3,4590,89,4599");
+                                "mythicmobs m spawn yirouInvoque 1 s3,4590,89,4599");
                         spawnCounter = 1;
                     }
                     cancel();
@@ -417,7 +418,7 @@ public class IceKingSummoner implements Listener {
         RegionQuery query = container.createQuery();
         ApplicableRegionSet set = query.getApplicableRegions(loc);
         for (ProtectedRegion region : set) {
-            if (region.getId().contains("altar")) {
+            if (region.getId().contains(regionTarget)) {
                 return true;
             }
         }
@@ -454,5 +455,34 @@ public class IceKingSummoner implements Listener {
             }
         }
         return null;
+    }
+    @EventHandler
+    public void onEntityShootBow(EntityShootBowEvent event) {
+        if (event.getEntity() instanceof Player) {
+            Player player = (Player) event.getEntity();
+            new BukkitRunnable() {
+                @Override
+                public void run() {
+                    if (isOnRegion(player, "ruins")) {
+                        double minAngle = 6.283185307179586D;
+                        Entity minEntity = null;
+                        Arrow arrow = (Arrow) event.getProjectile();
+                        for (Entity entity : arrow.getNearbyEntities(15.0D, 15.0D, 15.0D)) {
+                            if (player.hasLineOfSight(entity) && (entity instanceof Monster) && !entity.isDead()) {
+                                Vector toTarget = entity.getLocation().toVector().clone().subtract(player.getLocation().toVector());
+                                double angle = arrow.getVelocity().angle(toTarget);
+                                if (angle < minAngle) {
+                                    minAngle = angle;
+                                    minEntity = entity;
+                                }
+                            }
+                        }
+                        if (minEntity != null) {
+                            new HomingTask(arrow, (LivingEntity) minEntity, plugin);
+                        }
+                    }
+                }
+            }.runTaskLater(plugin, 5L); // Delay execution by 1 second (20 ticks = 1 second)
+        }
     }
 }
