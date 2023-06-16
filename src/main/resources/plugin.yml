@@ -6,3 +6,10 @@ authors: [ Mornov ]
 description: Custom Skills RPG
 depend:
   - ProtocolLib
+commands:
+  myesha:
+    description: Open the Myesha GUI
+    usage: /myesha
+    permission: myesha.use
+
+

@@ -6,33 +6,41 @@ import oneblock.skills.heads.HeadList;
 import oneblock.skills.mechanic.FarmingComposter;
 import oneblock.skills.mechanic.IceKingSummoner;
 import oneblock.skills.mechanic.JelloInteractListener;
+import oneblock.skills.mechanic.MyeshaListener;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.entity.ArmorStand;
-import org.bukkit.entity.Entity;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.plugin.java.JavaPlugin;
+import rocks.gravili.notquests.spigot.NotQuests;
 
 import java.io.*;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 public final class Main extends JavaPlugin {
 
+    private NotQuests notQuestsInstance;
     @Override
     public void onEnable() {
         // Plugin startup logic
-        System.out.print("Custom Skills by Mornov Enabled!");
+        System.out.print("Custom OneBlock by Mornov Enabled!");
         getServer().getPluginManager().registerEvents(new InteractListener(this), this);
         getServer().getPluginManager().registerEvents(new ArmorListener(this), this);
         getServer().getPluginManager().registerEvents(new MornovOnly(this), this);
         getServer().getPluginManager().registerEvents(new JelloInteractListener(this), this);
         getServer().getPluginManager().registerEvents(new IceKingSummoner(this), this);
         getServer().getPluginManager().registerEvents(new FarmingComposter(this), this);
+        getServer().getPluginManager().registerEvents(new MyeshaListener(this), this);
+        Objects.requireNonNull(getCommand("myesha")).setExecutor(new MyeshaListener(this));
+
+        notQuestsInstance = NotQuests.getInstance();
+
     }
 
     @Override
