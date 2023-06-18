@@ -6,18 +6,20 @@ import com.sk89q.worldguard.protection.ApplicableRegionSet;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
 import com.sk89q.worldguard.protection.regions.RegionQuery;
+import io.lumine.mythic.bukkit.events.MythicMobDeathEvent;
 import oneblock.skills.task.HomingTask;
-import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.Sound;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityShootBowEvent;
-import org.bukkit.event.entity.ProjectileHitEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -199,7 +201,6 @@ public class InteractListener implements Listener {
             return;
         }
 
-        Player player = (Player) event.getEntity();
         Arrow arrow = (Arrow) event.getProjectile();
         arrow.setPickupStatus(AbstractArrow.PickupStatus.DISALLOWED);
     }
@@ -289,5 +290,92 @@ public class InteractListener implements Listener {
             }
         }
         return false;
+    }
+    ////////// SOULREAPER KATANA //////////
+    @EventHandler
+    public void soulreaperKatanaHit(PlayerInteractEntityEvent event) {
+        Player player = event.getPlayer();
+        Entity clickedEntity = event.getRightClicked();
+
+        if (!(clickedEntity instanceof LivingEntity)) {
+            return;
+        }
+
+        ItemStack katana = player.getInventory().getItemInMainHand();
+        if (katana.getType() != Material.NETHERITE_SWORD || !katana.hasItemMeta()) {
+            return;
+        }
+
+        ItemMeta itemMeta = katana.getItemMeta();
+        assert itemMeta != null;
+        if (!itemMeta.hasDisplayName() || !itemMeta.getDisplayName().equals("§8Soulreaper Katana")) {
+            return;
+        }
+
+        AttributeInstance attackDamage = player.getAttribute(Attribute.GENERIC_ATTACK_DAMAGE);
+        assert attackDamage != null;
+        double originalDamage = attackDamage.getValue();
+        double increasedDamage = originalDamage + Double.parseDouble(getLoreLineValue(katana, 7));
+
+        LivingEntity livingEntity = (LivingEntity) clickedEntity;
+        livingEntity.damage(increasedDamage);
+        player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_LAND, 5f, 1f);
+    }
+
+    private String getLoreLineValue(ItemStack item, int lineNumber) {
+        if (item == null || !item.hasItemMeta() || !Objects.requireNonNull(item.getItemMeta()).hasLore()) {
+            return null;
+        }
+
+        List<String> lore = item.getItemMeta().getLore();
+        if (lineNumber <= 0 || lineNumber > Objects.requireNonNull(lore).size()) {
+            return null;
+        }
+
+        String line = lore.get(lineNumber - 1);
+        String[] parts = line.split(": ");
+        if (parts.length >= 2) {
+            return parts[1].trim();
+        }
+
+        return null;
+    }
+
+    @EventHandler
+    public void soulreaperSouls(MythicMobDeathEvent event) {
+        if (!Objects.requireNonNull(event.getEntity().getLocation().getWorld()).getName().equals("s3")) {
+            return;
+        }
+
+        Player player = (Player) event.getKiller();
+        if (player == null) {
+            return;
+        }
+
+        ItemStack katana = player.getInventory().getItemInMainHand();
+        if (katana.getType() != Material.NETHERITE_SWORD || !katana.hasItemMeta()) {
+            return;
+        }
+
+        ItemMeta itemMeta = katana.getItemMeta();
+        assert itemMeta != null;
+        if (!itemMeta.hasDisplayName() || !itemMeta.hasLore() || !itemMeta.getDisplayName().equals("§8Soulreaper Katana")) {
+            return;
+        }
+
+        int souls = Integer.parseInt(getLoreLineValue(katana, 7)) + 1;
+
+        List<String> lore = itemMeta.getLore();
+        String loreLine = "§8Souls Collected: " + souls;
+
+        for (int i = 0; i < Objects.requireNonNull(lore).size(); i++) {
+            String line = lore.get(i);
+            if (line.startsWith("§8Souls Collected: ")) {
+                lore.set(i, loreLine);
+                itemMeta.setLore(lore);
+                katana.setItemMeta(itemMeta);
+                break;
+            }
+        }
     }
 }
