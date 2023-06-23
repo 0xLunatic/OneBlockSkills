@@ -6,8 +6,9 @@ import com.sk89q.worldguard.protection.ApplicableRegionSet;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
 import com.sk89q.worldguard.protection.regions.RegionQuery;
-import io.lumine.mythic.bukkit.events.MythicMobDeathEvent;
+import io.lumine.mythic.bukkit.MythicBukkit;
 import oneblock.skills.task.HomingTask;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -21,6 +22,7 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityShootBowEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.metadata.FixedMetadataValue;
@@ -29,11 +31,14 @@ import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 public class InteractListener implements Listener {
     private final Main plugin;
+    private final Map<Player, Long> soulreaperCooldown = new HashMap<>();
 
     public InteractListener(Main plugin) {
         this.plugin = plugin;
@@ -293,9 +298,14 @@ public class InteractListener implements Listener {
     }
     ////////// SOULREAPER KATANA //////////
     @EventHandler
-    public void soulreaperKatanaHit(PlayerInteractEntityEvent event) {
+    public void soulreaperKatana(PlayerInteractEntityEvent event) {
+        if (!event.getHand().equals(EquipmentSlot.HAND)) {
+            return;
+        }
+
         Player player = event.getPlayer();
         Entity clickedEntity = event.getRightClicked();
+        long Cooldown = 20000;
 
         if (!(clickedEntity instanceof LivingEntity)) {
             return;
@@ -312,6 +322,17 @@ public class InteractListener implements Listener {
             return;
         }
 
+        if (soulreaperCooldown.containsKey(player)) {
+            long currentTime = System.currentTimeMillis();
+            long cooldownEnd = soulreaperCooldown.get(player);
+            if (currentTime < cooldownEnd) {
+                long remainingTime = (cooldownEnd - currentTime) / 1000; // Convert to seconds
+                player.sendMessage(ChatColor.RED + "Skill is on cooldown " + remainingTime + " seconds");
+                event.setCancelled(true);
+                return;
+            }
+        }
+
         AttributeInstance attackDamage = player.getAttribute(Attribute.GENERIC_ATTACK_DAMAGE);
         assert attackDamage != null;
         double originalDamage = attackDamage.getValue();
@@ -319,9 +340,24 @@ public class InteractListener implements Listener {
 
         LivingEntity livingEntity = (LivingEntity) clickedEntity;
         livingEntity.damage(increasedDamage);
+        double health = livingEntity.getHealth();
+        if (increasedDamage >= health) {
+            if (Objects.requireNonNull(livingEntity.getLocation().getWorld()).getName().equals("s3")) {
+                if (MythicBukkit.inst().getAPIHelper().isMythicMob(livingEntity)) {
+                    collectSouls(katana);
+                }
+            }
+        }
         player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_LAND, 5f, 1f);
-    }
 
+        long cooldownEnd = System.currentTimeMillis() + Cooldown;
+        soulreaperCooldown.put(player, cooldownEnd);
+
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            soulreaperCooldown.remove(player);
+            player.sendMessage(ChatColor.GOLD + "Embrace of Eternity " + ChatColor.GREEN + "is ready to be used!");
+        }, Cooldown / 50);
+    }
     private String getLoreLineValue(ItemStack item, int lineNumber) {
         if (item == null || !item.hasItemMeta() || !Objects.requireNonNull(item.getItemMeta()).hasLore()) {
             return null;
@@ -340,31 +376,11 @@ public class InteractListener implements Listener {
 
         return null;
     }
+    public void collectSouls(ItemStack item) {
+        int souls = Integer.parseInt(getLoreLineValue(item, 7)) + 1;
 
-    @EventHandler
-    public void soulreaperSouls(MythicMobDeathEvent event) {
-        if (!Objects.requireNonNull(event.getEntity().getLocation().getWorld()).getName().equals("s3")) {
-            return;
-        }
-
-        Player player = (Player) event.getKiller();
-        if (player == null) {
-            return;
-        }
-
-        ItemStack katana = player.getInventory().getItemInMainHand();
-        if (katana.getType() != Material.NETHERITE_SWORD || !katana.hasItemMeta()) {
-            return;
-        }
-
-        ItemMeta itemMeta = katana.getItemMeta();
+        ItemMeta itemMeta = item.getItemMeta();
         assert itemMeta != null;
-        if (!itemMeta.hasDisplayName() || !itemMeta.hasLore() || !itemMeta.getDisplayName().equals("§8Soulreaper Katana")) {
-            return;
-        }
-
-        int souls = Integer.parseInt(getLoreLineValue(katana, 7)) + 1;
-
         List<String> lore = itemMeta.getLore();
         String loreLine = "§8Souls Collected: " + souls;
 
@@ -373,7 +389,7 @@ public class InteractListener implements Listener {
             if (line.startsWith("§8Souls Collected: ")) {
                 lore.set(i, loreLine);
                 itemMeta.setLore(lore);
-                katana.setItemMeta(itemMeta);
+                item.setItemMeta(itemMeta);
                 break;
             }
         }
