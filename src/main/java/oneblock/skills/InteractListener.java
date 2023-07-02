@@ -7,6 +7,9 @@ import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
 import com.sk89q.worldguard.protection.regions.RegionQuery;
 import io.lumine.mythic.bukkit.MythicBukkit;
+import io.lumine.mythic.lib.api.item.NBTItem;
+import net.Indyuce.mmoitems.api.item.mmoitem.LiveMMOItem;
+import net.Indyuce.mmoitems.api.item.mmoitem.MMOItem;
 import oneblock.skills.task.HomingTask;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -39,6 +42,7 @@ import java.util.Objects;
 public class InteractListener implements Listener {
     private final Main plugin;
     private final Map<Player, Long> soulreaperCooldown = new HashMap<>();
+    private final Map<Player, Long> galaxycrossbladeCooldown = new HashMap<>();
 
     public InteractListener(Main plugin) {
         this.plugin = plugin;
@@ -392,6 +396,118 @@ public class InteractListener implements Listener {
                 item.setItemMeta(itemMeta);
                 break;
             }
+        }
+    }
+
+    ////////// GALAXY CROSSBLADE //////////
+    @EventHandler
+    public void galaxycrossbladeStrike(EntityDamageByEntityEvent event) {
+        if (!(event.getDamager() instanceof Player)) {
+            return;
+        }
+
+        Player player = (Player) event.getDamager();
+        long cooldown = 30000;
+        double damage = player.getHealth() * 1.5;
+        double currentHealth = player.getHealth();
+
+        ItemStack sword = player.getInventory().getItemInMainHand();
+        if (sword.getType() != Material.IRON_SWORD || !sword.hasItemMeta()) {
+            return;
+        }
+
+        ItemMeta itemMeta = sword.getItemMeta();
+        assert itemMeta != null;
+        if (!itemMeta.hasDisplayName() || !itemMeta.hasLore() || !itemMeta.getDisplayName().equals("§fGalaxy Crossblade")) {
+            return;
+        }
+
+        List<String> lore = itemMeta.getLore();
+        if (lore == null || lore.size() <= 6) {
+            return;
+        }
+
+        NBTItem nbtItem = NBTItem.get(sword);
+        MMOItem mmoItem = new LiveMMOItem(nbtItem);
+        double itemDamage = mmoItem.getDamage();
+
+        if (itemDamage <= currentHealth) {
+            return;
+        }
+
+        if (galaxycrossbladeCooldown.containsKey(player)) {
+            Bukkit.broadcastMessage(String.valueOf(galaxycrossbladeCooldown.get(player)));
+            long currentTime = System.currentTimeMillis();
+            long cooldownEnd = galaxycrossbladeCooldown.get(player);
+            if (currentTime < cooldownEnd) {
+                return;
+            }
+        }
+
+        event.setDamage(damage);
+        long cooldownEnd = System.currentTimeMillis() + cooldown;
+        player.playSound(player, Sound.BLOCK_ANVIL_LAND, 5, 1);
+        galaxycrossbladeCooldown.put(player, cooldownEnd);
+
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            galaxycrossbladeCooldown.remove(player);
+            player.sendMessage(ChatColor.GOLD + "Cosmic Strike " + ChatColor.GREEN + "is ready to be used!");
+        }, cooldown / 50);
+    }
+
+    @EventHandler
+    public void galaxycrossbladeHeal(EntityDamageByEntityEvent event) {
+        if (!(event.getDamager() instanceof Player)) {
+            return;
+        }
+
+        Player player = (Player) event.getDamager();
+        double currentHealth = player.getHealth();
+        double maxHealth = player.getMaxHealth();
+
+        ItemStack sword = player.getInventory().getItemInMainHand();
+        if (sword.getType() != Material.IRON_SWORD || !sword.hasItemMeta()) {
+            return;
+        }
+
+        ItemMeta itemMeta = sword.getItemMeta();
+        assert itemMeta != null;
+        if (!itemMeta.hasDisplayName() || !itemMeta.hasLore() || !itemMeta.getDisplayName().equals("§fGalaxy Crossblade")) {
+            return;
+        }
+
+        List<String> lore = itemMeta.getLore();
+        if (lore == null || lore.size() <= 6) {
+            return;
+        }
+
+        if (currentHealth <= (0.1 * maxHealth)) {
+            double healthToRestore = 0.25 * maxHealth;
+            double restorePerTick = healthToRestore / 10.0;
+            Bukkit.broadcastMessage("heal");
+
+            new BukkitRunnable() {
+                int ticksRemaining = 20; // 0.5 seconds = 6 ticks (20 ticks per second)
+                @Override
+                public void run() {
+                    if (!player.isOnline() || player.isDead()) {
+                        cancel();
+                        return;
+                    }
+                    double newHealth = player.getHealth() + restorePerTick;
+                    if (newHealth > healthToRestore) {
+                        newHealth = healthToRestore;
+                        cancel();
+                    }
+
+                    player.setHealth(newHealth);player.sendMessage(ChatColor.GREEN + "Your health is being restored!");
+
+                    ticksRemaining--;
+                    if (ticksRemaining <= 0) {
+                        cancel(); // Stop the restoration task
+                    }
+                }
+            }.runTaskTimer(plugin, 20L, 20L);
         }
     }
 }
