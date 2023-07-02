@@ -23,8 +23,10 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityShootBowEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -32,6 +34,7 @@ import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 
 import java.util.HashMap;
@@ -43,6 +46,9 @@ public class InteractListener implements Listener {
     private final Main plugin;
     private final Map<Player, Long> soulreaperCooldown = new HashMap<>();
     private final Map<Player, Long> galaxycrossbladeCooldown = new HashMap<>();
+    private final Map<Player, Long> bloodfangdaggerCooldown = new HashMap<>();
+    private final Map<Player, Boolean> bloodfangdaggerActive = new HashMap<>();
+    private HashMap<Player, BukkitTask> playerTasks = new HashMap<>();
 
     public InteractListener(Main plugin) {
         this.plugin = plugin;
@@ -401,7 +407,7 @@ public class InteractListener implements Listener {
 
     ////////// GALAXY CROSSBLADE //////////
     @EventHandler
-    public void galaxycrossbladeStrike(EntityDamageByEntityEvent event) {
+    public void galaxycrossBladeStrike(EntityDamageByEntityEvent event) {
         if (!(event.getDamager() instanceof Player)) {
             return;
         }
@@ -418,7 +424,7 @@ public class InteractListener implements Listener {
 
         ItemMeta itemMeta = sword.getItemMeta();
         assert itemMeta != null;
-        if (!itemMeta.hasDisplayName() || !itemMeta.hasLore() || !itemMeta.getDisplayName().equals("§fGalaxy Crossblade")) {
+        if (!itemMeta.hasDisplayName() || !itemMeta.getDisplayName().equals("§fGalaxy Crossblade")) {
             return;
         }
 
@@ -456,7 +462,7 @@ public class InteractListener implements Listener {
     }
 
     @EventHandler
-    public void galaxycrossbladeHeal(EntityDamageByEntityEvent event) {
+    public void galaxycrossBladeHeal(EntityDamageByEntityEvent event) {
         if (!(event.getDamager() instanceof Player)) {
             return;
         }
@@ -473,11 +479,6 @@ public class InteractListener implements Listener {
         ItemMeta itemMeta = sword.getItemMeta();
         assert itemMeta != null;
         if (!itemMeta.hasDisplayName() || !itemMeta.hasLore() || !itemMeta.getDisplayName().equals("§fGalaxy Crossblade")) {
-            return;
-        }
-
-        List<String> lore = itemMeta.getLore();
-        if (lore == null || lore.size() <= 6) {
             return;
         }
 
@@ -508,6 +509,175 @@ public class InteractListener implements Listener {
                     }
                 }
             }.runTaskTimer(plugin, 20L, 20L);
+        }
+    }
+
+    ////////// BLOODFANG DAGGER //////////
+    @EventHandler
+    public void bloodfangDagger(EntityDamageByEntityEvent event) {
+        if (!(event.getDamager() instanceof Player)) {
+            return;
+        }
+
+        Player player = (Player) event.getDamager();
+        LivingEntity target = (LivingEntity) event.getEntity();
+        ItemStack sword = player.getInventory().getItemInMainHand();
+        if (sword.getType() != Material.GOLDEN_SWORD || !sword.hasItemMeta()) {
+            return;
+        }
+
+        ItemMeta itemMeta = sword.getItemMeta();
+        assert itemMeta != null;
+        if (!itemMeta.hasDisplayName() || !itemMeta.hasLore() || !itemMeta.getDisplayName().equals("§fBloodfang Dagger")) {
+            return;
+        }
+
+        List<String> lore = itemMeta.getLore();
+        if (lore == null || lore.size() <= 6) {
+            return;
+        }
+
+        if (!hasLoreContaining(lore, "Vampiric Lifesteal")) {
+            return;
+        }
+        if (bloodfangdaggerActive.containsKey(player)) {
+            if (event.getDamage() <= target.getHealth()) {
+                double healthAmount = event.getDamage() * 0.1;
+                double currentHealth = player.getHealth();
+                double maxHealth = player.getMaxHealth();
+                double rounded = player.getMaxHealth() - player.getHealth();
+                double modifiedHealth = currentHealth + healthAmount;
+
+                if (healthAmount <= maxHealth) {
+                    if (healthAmount >= rounded && rounded != 0) {
+                        modifiedHealth = rounded;
+                    }
+                    player.setHealth(modifiedHealth);
+                }
+            }
+        }
+    }
+    @EventHandler
+    public void bloodfangDaggerSkill(PlayerInteractEvent event) {
+        if (!Objects.equals(event.getHand(), EquipmentSlot.HAND)) {
+            return;
+        }
+
+        if (!event.getAction().equals(Action.RIGHT_CLICK_AIR) && !event.getAction().equals(Action.RIGHT_CLICK_BLOCK)) {
+            return;
+        }
+
+        Player player = event.getPlayer();
+
+        ItemStack sword = player.getInventory().getItemInMainHand();
+        if (sword.getType() != Material.GOLDEN_SWORD || !sword.hasItemMeta()) {
+            return;
+        }
+
+        ItemMeta itemMeta = sword.getItemMeta();
+        assert itemMeta != null;
+        if (!itemMeta.hasDisplayName() || !itemMeta.hasLore() || !itemMeta.getDisplayName().equals("§fBloodfang Dagger")) {
+            return;
+        }
+        List<String> lore = itemMeta.getLore();
+        if (lore == null || lore.size() <= 6) {
+            return;
+        }
+
+        if (!hasLoreContaining(lore, "Vampiric Lifesteal")) {
+            return;
+        }
+
+        if (bloodfangdaggerActive.containsKey(player)) {
+            return;
+        }
+
+        if (bloodfangdaggerCooldown.containsKey(player)) {
+            long currentTime = System.currentTimeMillis();
+            long cooldownEnd = bloodfangdaggerCooldown.get(player);
+            if (!bloodfangdaggerActive.containsKey(player)) {
+                if (currentTime < cooldownEnd) {
+                    long remainingTime = (cooldownEnd - currentTime) / 1000; // Convert to seconds
+                    player.sendMessage(ChatColor.RED + "Skill is on cooldown " + remainingTime + " seconds");
+                    return;
+                }
+            }
+        }
+        bloodfangdaggerActive.put(player, true);
+        player.sendMessage(ChatColor.GOLD + "Vampiric Lifesteal " + ChatColor.GREEN + "is active!");
+        player.playSound(player, Sound.BLOCK_ANVIL_LAND, 5, 1);
+
+        BukkitTask bloodfang = Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            bloodfangdaggerActive.remove(player);
+            player.sendMessage(ChatColor.GOLD + "Vampiric Lifesteal " + ChatColor.RED + "is on cooldown!");
+
+            long cooldownEnd = System.currentTimeMillis() + 30000;
+            bloodfangdaggerCooldown.put(player, cooldownEnd);
+
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                bloodfangdaggerCooldown.remove(player);
+                player.sendMessage(ChatColor.GOLD + "Vampiric Lifesteal " + ChatColor.GREEN + "is ready to use!");
+            }, 30000 / 50);
+        }, 10000 / 50);
+        playerTasks.put(player, bloodfang);
+    }
+
+    private boolean hasLoreContaining(List<String> lore, String searchString) {
+        if (lore == null || searchString == null) {
+            return false;
+        }
+        for (String line : lore) {
+            if (line.contains(searchString)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @EventHandler
+    public void resetOnDeath(PlayerDeathEvent event) {
+        Player player = event.getEntity();
+        BukkitTask task = playerTasks.get(player);
+        long cooldownEnd30 = System.currentTimeMillis() + 30000;
+        long cooldownEnd20 = System.currentTimeMillis() + 20000;
+        long cooldownEnd10 = System.currentTimeMillis() + 10000;
+
+        if (task != null) {
+            task.cancel();
+            playerTasks.remove(player);
+        }
+
+        if (bloodfangdaggerActive.containsKey(player) && !bloodfangdaggerCooldown.containsKey(player)) {
+            bloodfangdaggerActive.remove(player);
+            bloodfangdaggerCooldown.put(player, cooldownEnd30);
+            player.sendMessage(ChatColor.GOLD + "Vampiric Lifesteal " + ChatColor.RED + "is on cooldown!");
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                bloodfangdaggerCooldown.remove(player);
+                player.sendMessage(ChatColor.GOLD + "Vampiric Lifesteal " + ChatColor.GREEN + "is ready to use!");
+            }, 30000 / 50);
+        }
+    }
+    @EventHandler
+    public void resetOnSwap(PlayerItemHeldEvent event) {
+        Player player = event.getPlayer();
+        BukkitTask task = playerTasks.get(player);
+        long cooldownEnd30 = System.currentTimeMillis() + 30000;
+        long cooldownEnd20 = System.currentTimeMillis() + 20000;
+        long cooldownEnd10 = System.currentTimeMillis() + 10000;
+
+        if (task != null) {
+            task.cancel();
+            playerTasks.remove(player);
+        }
+
+        if (bloodfangdaggerActive.containsKey(player) && !bloodfangdaggerCooldown.containsKey(player)) {
+            bloodfangdaggerActive.remove(player);
+            bloodfangdaggerCooldown.put(player, cooldownEnd30);
+            player.sendMessage(ChatColor.GOLD + "Vampiric Lifesteal " + ChatColor.RED + "is on cooldown!");
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                bloodfangdaggerCooldown.remove(player);
+                player.sendMessage(ChatColor.GOLD + "Vampiric Lifesteal " + ChatColor.GREEN + "is ready to use!");
+            }, 30000 / 50);
         }
     }
 }
