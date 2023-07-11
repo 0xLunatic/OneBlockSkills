@@ -37,10 +37,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 public class InteractListener implements Listener {
     private final Main plugin;
@@ -49,6 +46,7 @@ public class InteractListener implements Listener {
     private final Map<Player, Long> bloodfangdaggerCooldown = new HashMap<>();
     private final Map<Player, Boolean> bloodfangdaggerActive = new HashMap<>();
     private HashMap<Player, BukkitTask> playerTasks = new HashMap<>();
+    private final Set<Player> vortexPlayers = new HashSet<>();
 
     public InteractListener(Main plugin) {
         this.plugin = plugin;
@@ -322,7 +320,7 @@ public class InteractListener implements Listener {
         }
 
         ItemStack katana = player.getInventory().getItemInMainHand();
-        if (katana.getType() != Material.NETHERITE_SWORD || !katana.hasItemMeta()) {
+        if (katana.getType() != Material.DIAMOND_SWORD || !katana.hasItemMeta()) {
             return;
         }
 
@@ -346,16 +344,15 @@ public class InteractListener implements Listener {
         AttributeInstance attackDamage = player.getAttribute(Attribute.GENERIC_ATTACK_DAMAGE);
         assert attackDamage != null;
         double originalDamage = attackDamage.getValue();
-        double increasedDamage = originalDamage + Double.parseDouble(getLoreLineValue(katana, 7));
+        double increasedDamage = originalDamage + Double.parseDouble(getLoreLineValue(katana, findLoreContaining(katana.getItemMeta().getLore(), "Souls Collected")));
+        player.sendMessage(String.valueOf(increasedDamage));
 
         LivingEntity livingEntity = (LivingEntity) clickedEntity;
         livingEntity.damage(increasedDamage);
         double health = livingEntity.getHealth();
         if (increasedDamage >= health) {
-            if (Objects.requireNonNull(livingEntity.getLocation().getWorld()).getName().equals("s3")) {
-                if (MythicBukkit.inst().getAPIHelper().isMythicMob(livingEntity)) {
-                    collectSouls(katana);
-                }
+            if (MythicBukkit.inst().getAPIHelper().isMythicMob(livingEntity)) {
+                collectSouls(katana);
             }
         }
         player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_LAND, 5f, 1f);
@@ -378,7 +375,7 @@ public class InteractListener implements Listener {
             return null;
         }
 
-        String line = lore.get(lineNumber - 1);
+        String line = lore.get(lineNumber);
         String[] parts = line.split(": ");
         if (parts.length >= 2) {
             return parts[1].trim();
@@ -418,7 +415,7 @@ public class InteractListener implements Listener {
         double currentHealth = player.getHealth();
 
         ItemStack sword = player.getInventory().getItemInMainHand();
-        if (sword.getType() != Material.IRON_SWORD || !sword.hasItemMeta()) {
+        if (sword.getType() != Material.DIAMOND_SWORD || !sword.hasItemMeta()) {
             return;
         }
 
@@ -519,10 +516,14 @@ public class InteractListener implements Listener {
             return;
         }
 
+        if (!(event.getEntity() instanceof LivingEntity)) {
+            return;
+        }
+
         Player player = (Player) event.getDamager();
         LivingEntity target = (LivingEntity) event.getEntity();
         ItemStack sword = player.getInventory().getItemInMainHand();
-        if (sword.getType() != Material.GOLDEN_SWORD || !sword.hasItemMeta()) {
+        if (sword.getType() != Material.DIAMOND_SWORD || !sword.hasItemMeta()) {
             return;
         }
 
@@ -579,6 +580,7 @@ public class InteractListener implements Listener {
         if (!itemMeta.hasDisplayName() || !itemMeta.hasLore() || !itemMeta.getDisplayName().equals("§fBloodfang Dagger")) {
             return;
         }
+
         List<String> lore = itemMeta.getLore();
         if (lore == null || lore.size() <= 6) {
             return;
@@ -634,6 +636,19 @@ public class InteractListener implements Listener {
         return false;
     }
 
+    private int findLoreContaining(List<String> lore, String searchString) {
+        if (lore == null || searchString == null) {
+            return -1;
+        }
+        for (int i = 0; i < lore.size(); i++) {
+            String line = lore.get(i);
+            if (line.contains(searchString)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     @EventHandler
     public void resetOnDeath(PlayerDeathEvent event) {
         Player player = event.getEntity();
@@ -679,5 +694,9 @@ public class InteractListener implements Listener {
                 player.sendMessage(ChatColor.GOLD + "Vampiric Lifesteal " + ChatColor.GREEN + "is ready to use!");
             }, 30000 / 50);
         }
+    }
+    @EventHandler
+    public void glacialshardcutlass() {
+        
     }
 }
