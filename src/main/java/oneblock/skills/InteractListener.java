@@ -319,6 +319,10 @@ public class InteractListener implements Listener {
             return;
         }
 
+        if (clickedEntity instanceof Player) {
+            return;
+        }
+
         ItemStack katana = player.getInventory().getItemInMainHand();
         if (katana.getType() != Material.DIAMOND_SWORD || !katana.hasItemMeta()) {
             return;
@@ -384,7 +388,8 @@ public class InteractListener implements Listener {
         return null;
     }
     public void collectSouls(ItemStack item) {
-        int souls = Integer.parseInt(getLoreLineValue(item, 7)) + 1;
+        String string = getLoreLineValue(item, 7).replaceAll("§f", "");
+        int souls = Integer.parseInt(string) + 1;
 
         ItemMeta itemMeta = item.getItemMeta();
         assert itemMeta != null;

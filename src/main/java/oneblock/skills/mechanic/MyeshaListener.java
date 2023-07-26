@@ -1,6 +1,5 @@
 package oneblock.skills.mechanic;
 
-import me.clip.placeholderapi.PlaceholderAPI;
 import oneblock.skills.Main;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
